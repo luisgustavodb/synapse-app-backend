@@ -1,15 +1,18 @@
 
 
-import React, { useState, ElementType, useEffect } from 'react';
+import React, { useState, ElementType } from 'react';
 import { motion } from 'framer-motion';
-import { feedPosts } from '../constants';
+import { Link } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
 import FeedPostCard from '../components/FeedPostCard';
 import AdFeedCard from '../components/AdFeedCard';
 import { MessageIcon } from '../components/icons/MessageIcon';
 import { BellIcon } from '../components/icons/BellIcon';
+import { PlusIcon } from '../components/icons/PlusIcon';
 import NotificationsPanel from '../components/NotificationsPanel';
 import ChatPanel from '../components/ChatPanel';
 import type { FeedPost } from '../types';
+import { ExclamationTriangleIcon } from '../components/icons/ExclamationTriangleIcon';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -26,99 +29,10 @@ const pageTransition = {
 const MotionDiv = motion.div as ElementType;
 const MotionHeader = motion.header as ElementType;
 
-// Fisher-Yates (aka Knuth) Shuffle
-const shuffleArray = (array: any[]) => {
-  let currentIndex = array.length,  randomIndex;
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-  }
-  return array;
-};
-
 const HomePage: React.FC = () => {
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
-    const [posts, setPosts] = useState<FeedPost[]>(() => shuffleArray([...feedPosts]));
-
-    useEffect(() => {
-        const fetchNewPosts = async () => {
-            try {
-                const response = await fetch("https://pleased-sharply-cheetah.ngrok-free.app/webhook/3334fa36-6eea-4046-98fe-f36f9ebef092", {
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true'
-                    }
-                });
-                if (!response.ok) {
-                    console.error("Failed to fetch new posts, status:", response.status);
-                    return;
-                }
-                
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    const text = await response.text();
-                    console.error("Received non-JSON response from posts webhook:", text);
-                    return;
-                }
-                const newPostsData: any[] = await response.json();
-
-                if (Array.isArray(newPostsData) && newPostsData.length > 0) {
-                    const existingPostIds = new Set(posts.map(p => p.id));
-                    
-                    const newlyFetchedPosts: FeedPost[] = newPostsData
-                        .filter(p => p && p.id && !existingPostIds.has(p.id.toString()))
-                        .map((p) => {
-                            let imageUrl = p.imagem;
-                            // Sanitize the image URL which might be a double-stringified JSON from the backend
-                            if (typeof imageUrl === 'string' && imageUrl.length > 1 && imageUrl.startsWith('"') && imageUrl.endsWith('"')) {
-                                imageUrl = imageUrl.substring(1, imageUrl.length - 1);
-                            }
-                            
-                            let avatarUrl = p['imagem de perfil'] || 'https://cdn.pixabay.com/photo/2016/08/08/09/17/avatar-1577909_1280.png';
-                            // Sanitize the avatar URL
-                            if (typeof avatarUrl === 'string' && avatarUrl.length > 1 && avatarUrl.startsWith('"') && avatarUrl.endsWith('"')) {
-                                avatarUrl = avatarUrl.substring(1, avatarUrl.length - 1);
-                            }
-
-                            return {
-                                id: p.id.toString(),
-                                author: {
-                                    name: p.nome_usuario || 'Usuário Synapse',
-                                    handle: p.usuario ? `@${p.usuario}` : '@synapse',
-                                    avatar: avatarUrl,
-                                },
-                                imageUrl: imageUrl,
-                                caption: `${p.titulo}\n${p.descrição}`,
-                                likes: Math.floor(Math.random() * 500),
-                                comments: Math.floor(Math.random() * 50),
-                                type: 'post' as const,
-                            };
-                        });
-
-                    if (newlyFetchedPosts.length > 0) {
-                        setPosts(currentPosts => {
-                            const combinedPosts = [...newlyFetchedPosts, ...currentPosts];
-                            feedPosts.length = 0;
-                            feedPosts.push(...combinedPosts);
-                            return shuffleArray(combinedPosts);
-                        });
-                    }
-                }
-            } catch (error) {
-                if (error instanceof SyntaxError) {
-                    console.error("Error parsing JSON from webhook:", error);
-                } else {
-                    console.error("Error polling for new posts:", error);
-                }
-            }
-        };
-
-        const intervalId = setInterval(fetchNewPosts, 15000); // Poll every 15 seconds
-
-        return () => clearInterval(intervalId); // Cleanup on component unmount
-    }, [posts]);
-
+    const { feedPosts, feedError, isFeedLoading } = useUser();
 
     const motionProps = {
         initial: "initial",
@@ -166,16 +80,45 @@ const HomePage: React.FC = () => {
             <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
             <div className="pb-24">
-                <div className="space-y-4">
-                    {posts.map(post => (
-                        post.type === 'ad'
-                            ? <AdFeedCard key={post.id} post={post} />
-                            : <FeedPostCard key={post.id} post={post} />
-                    ))}
-                    <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm font-medium">
-                        <p>Você chegou ao final dos feeds.</p>
+                {feedError && (
+                    <div className="p-4 m-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600/50 text-red-800 dark:text-red-200 rounded-lg text-left flex items-start space-x-3">
+                        <ExclamationTriangleIcon className="h-6 w-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" />
+                        <div>
+                            <p className="font-bold">Erro ao Carregar o Feed</p>
+                            <p className="text-sm mt-1 whitespace-pre-line">{feedError}</p>
+                        </div>
                     </div>
-                </div>
+                )}
+                
+                {isFeedLoading && feedPosts.length === 0 && !feedError && (
+                     <div className="flex justify-center items-center py-20">
+                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+                    </div>
+                )}
+
+                {feedPosts.length > 0 ? (
+                    <div className="space-y-4">
+                        {feedPosts.map(post => (
+                            post.type === 'ad'
+                                ? <AdFeedCard key={post.id} post={post} />
+                                : <FeedPostCard key={post.id} post={post} />
+                        ))}
+                        <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm font-medium">
+                            <p>Você chegou ao final do feed.</p>
+                        </div>
+                    </div>
+                ) : (
+                    !feedError && !isFeedLoading && (
+                         <div className="text-center py-20 px-6 text-slate-500 dark:text-slate-400">
+                            <p className="font-semibold text-lg text-slate-600 dark:text-slate-300">Seu feed está vazio</p>
+                            <p className="text-sm mt-2">Comece a seguir pessoas ou explore para ver novas publicações aqui.</p>
+                            <Link to="/create" className="mt-6 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-full transition-colors">
+                                <PlusIcon className="w-5 h-5" />
+                                <span>Criar Publicação</span>
+                            </Link>
+                        </div>
+                    )
+                )}
             </div>
         </MotionDiv>
     );

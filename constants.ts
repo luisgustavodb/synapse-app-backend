@@ -901,8 +901,6 @@ const userAuthor = {
     avatar: initialUser.avatarUrl 
 };
 
-export let feedPosts: FeedPost[] = [];
-
 
 export const chatConversations: ChatConversation[] = [
     {

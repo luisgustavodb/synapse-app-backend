@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FeedPost } from '../types';
@@ -11,7 +13,6 @@ import { FilledBookmarkIcon } from './icons/FilledBookmarkIcon';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { useUser } from '../context/UserContext';
-import { feedPosts } from '../constants';
 import { TrashIcon } from './icons/TrashIcon';
 
 interface PostDetailViewProps {
@@ -26,7 +27,7 @@ const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, 
     const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     
-    const { user } = useUser();
+    const { user, updateFeed } = useUser();
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
@@ -61,10 +62,7 @@ const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, 
                 throw new Error('Falha ao excluir a publicação.');
             }
 
-            const postIndex = feedPosts.findIndex(p => p.id === currentPost.id);
-            if (postIndex > -1) {
-                feedPosts.splice(postIndex, 1);
-            }
+            updateFeed({ type: 'remove', postId: currentPost.id });
             
             goBack();
 
@@ -107,7 +105,7 @@ const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, 
         )
     }
 
-    const { author, imageUrl, caption, likes, comments } = currentPost;
+    const { author, imageUrl, videoUrl, caption, likes, comments } = currentPost;
     const isAvatarUrl = author.avatar.startsWith('http') || author.avatar.startsWith('data:');
 
     return (
@@ -153,11 +151,19 @@ const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, 
                         }}
                         className="absolute w-full h-full flex items-center justify-center"
                     >
-                        <img
-                            src={imageUrl}
-                            alt={caption}
-                            className="max-h-full max-w-full object-contain"
-                        />
+                        {videoUrl ? (
+                             <video
+                                src={videoUrl}
+                                controls
+                                className="max-h-full max-w-full object-contain"
+                            />
+                        ) : imageUrl ? (
+                            <img
+                                src={imageUrl}
+                                alt={caption}
+                                className="max-h-full max-w-full object-contain"
+                            />
+                        ) : null}
                     </motion.div>
                 </AnimatePresence>
                 

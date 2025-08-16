@@ -1,8 +1,10 @@
 
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { articles, activityItems, podcastItems, resourceItems, feedPosts } from '../constants';
+import { articles, activityItems, podcastItems, resourceItems } from '../constants';
+import { useUser } from '../context/UserContext';
 import type { Article, ActivityItem, PodcastItem, ResourceItem, FeedPost } from '../types';
 import { DumbbellIcon } from '../components/icons/DumbbellIcon';
 import { ClockIcon } from '../components/icons/ClockIcon';
@@ -28,6 +30,7 @@ const pageTransition = {
 
 const DetailPage: React.FC = () => {
     const { type, id } = useParams<{ type: string; id: string }>();
+    const { feedPosts } = useUser();
     const [item, setItem] = useState<ContentItem | null>(null);
     const [allUserPosts, setAllUserPosts] = useState<FeedPost[]>([]);
     const [fallbackPath, setFallbackPath] = useState('/academy');
@@ -84,7 +87,7 @@ const DetailPage: React.FC = () => {
         }
         setItem(foundItem || null);
         setFallbackPath(newFallback);
-    }, [type, id]);
+    }, [type, id, feedPosts]);
     
     const motionProps = {
         initial:"initial",

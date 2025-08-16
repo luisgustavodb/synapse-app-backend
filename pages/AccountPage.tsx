@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo, ElementType } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser } from '../context/UserContext';
-import { feedPosts, storyHighlights, userStories } from '../constants';
+import { storyHighlights, userStories } from '../constants';
 import StoryView from '../components/StoryView';
 import type { StoryHighlight } from '../types';
 import FollowList from '../components/FollowList';
@@ -28,7 +29,7 @@ const pageTransition = {
 const MotionDiv = motion.div as ElementType;
 
 const AccountPage: React.FC = () => {
-    const { user } = useUser();
+    const { user, feedPosts } = useUser();
     const [activeTab, setActiveTab] = useState<'posts' | 'progress'>('posts');
     const [viewingHighlight, setViewingHighlight] = useState<StoryHighlight | null>(null);
     const [isFollowListOpen, setIsFollowListOpen] = useState(false);
@@ -37,7 +38,7 @@ const AccountPage: React.FC = () => {
     const userPosts = useMemo(() => {
         if (!user) return [];
         return feedPosts.filter(post => post.author.handle === user.handle);
-    }, [user]);
+    }, [user, feedPosts]);
 
     if (!user) {
         // Should not be reached due to ProtectedLayout, but it's a good safeguard.

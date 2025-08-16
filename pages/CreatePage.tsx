@@ -1,10 +1,8 @@
 
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useUser } from '../context/UserContext';
-import { feedPosts } from '../constants';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { CameraIcon } from '../components/icons/CameraIcon';
 import { useGoBack } from '../hooks/useGoBack';
@@ -19,23 +17,49 @@ const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.5 } as c
 const CreatePage: React.FC = () => {
     const navigate = useNavigate();
     const goBack = useGoBack('/');
-    const { user } = useUser();
+    const { user, updateFeed } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
     const [title, setTitle] = useState('');
     const [caption, setCaption] = useState('');
     const [isPublishing, setIsPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            setError(null); // Limpa erros anteriores
+            const fileType = file.type;
+            const fileName = file.name.toLowerCase();
+            let determinedType: 'image' | 'video' | null = null;
+
+            if (fileType.startsWith('video/')) {
+                determinedType = 'video';
+            } else if (fileType.startsWith('image/')) {
+                determinedType = 'image';
+            } else {
+                // Fallback para navegadores que podem não fornecer um tipo MIME
+                if (/\.(mp4|mov|webm|ogg)$/i.test(fileName)) {
+                    determinedType = 'video';
+                } else if (/\.(jpg|jpeg|png|gif|webp)$/i.test(fileName)) {
+                    determinedType = 'image';
+                }
+            }
+
+            if (determinedType) {
+                setMediaType(determinedType);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setMediaPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                setError("Tipo de arquivo não suportado. Por favor, selecione uma imagem ou um vídeo.");
+                setMediaPreview(null);
+                setMediaType(null);
+            }
         }
     };
 
@@ -45,18 +69,29 @@ const CreatePage: React.FC = () => {
             setError("Usuário não autenticado. Por favor, faça login novamente.");
             return;
         }
-        if (!imagePreview || !title.trim() || !caption.trim() || isPublishing) return;
+        if (!mediaPreview || !title.trim() || !caption.trim() || isPublishing) return;
 
         setIsPublishing(true);
         setError(null);
         
-        const webhookUrl = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/cb960ada-ca9d-4358-811b-084743f9c46e";
-        const payload = {
+        const webhookUrl = "http://localhost:5678/webhook-test/cb960ada-ca9d-4358-811b-084743f9c46e";
+        const payload: {
+            username: string;
+            title: string;
+            caption: string;
+            imagem?: string;
+            video?: string;
+        } = {
             username: user.handle.startsWith('@') ? user.handle.substring(1) : user.handle,
-            photo: imagePreview,
             title: title.trim(),
-            caption: caption.trim()
+            caption: caption.trim(),
         };
+
+        if (mediaType === 'image') {
+            payload.imagem = mediaPreview;
+        } else if (mediaType === 'video') {
+            payload.video = mediaPreview;
+        }
 
         try {
             const response = await fetch(webhookUrl, {
@@ -76,12 +111,13 @@ const CreatePage: React.FC = () => {
                 id: crypto.randomUUID(),
                 type: 'post' as const,
                 author: { name: user.name, handle: user.handle, avatar: user.avatarUrl },
-                imageUrl: imagePreview,
-                caption: caption.trim(),
+                imageUrl: mediaType === 'image' ? mediaPreview : undefined,
+                videoUrl: mediaType === 'video' ? mediaPreview : undefined,
+                caption: `${title.trim()}\n${caption.trim()}`,
                 likes: 0,
                 comments: 0,
             };
-            feedPosts.unshift(newPost);
+            updateFeed({ type: 'add', post: newPost });
             
             navigate('/');
 
@@ -93,7 +129,7 @@ const CreatePage: React.FC = () => {
         }
     };
 
-    const canPublish = !!imagePreview && !!title.trim() && !!caption.trim() && !isPublishing;
+    const canPublish = !!mediaPreview && !!title.trim() && !!caption.trim() && !isPublishing;
 
     return (
         <motion.div
@@ -112,21 +148,25 @@ const CreatePage: React.FC = () => {
             </header>
              <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-y-auto">
                 <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-6">
-                    <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,video/*" className="hidden" />
                     
-                    <div className={`w-full max-w-sm mx-auto rounded-lg overflow-hidden transition-all duration-300 aspect-square ${imagePreview ? '' : 'border-2 border-dashed border-slate-300 dark:border-slate-600'}`}>
+                    <div className={`w-full max-w-sm mx-auto rounded-lg overflow-hidden transition-all duration-300 aspect-square ${mediaPreview ? '' : 'border-2 border-dashed border-slate-300 dark:border-slate-600'}`}>
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             className="w-full h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                         >
-                            {imagePreview ? (
-                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                            {mediaPreview ? (
+                                mediaType === 'video' ? (
+                                    <video src={mediaPreview} controls className="w-full h-full object-cover" />
+                                ) : (
+                                    <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+                                )
                             ) : (
                                 <>
                                     <CameraIcon className="w-10 h-10 mb-2" />
-                                    <span className="font-semibold">Enviar foto</span>
-                                    <span className="text-xs">1080x1080</span>
+                                    <span className="font-semibold">Enviar foto ou vídeo</span>
+                                    <span className="text-xs">Quadrado (1:1) recomendado</span>
                                 </>
                             )}
                         </button>

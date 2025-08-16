@@ -1,7 +1,9 @@
+
 import React from 'react';
-import { feedPosts, articles, activityItems, groupClasses } from '../../constants';
+import { articles, activityItems, groupClasses } from '../../constants';
 import GridItemCard from '../../components/GridItemCard';
 import { LeafIcon } from '../../components/icons/LeafIcon';
+import { useUser } from '../../context/UserContext';
 
 // Fisher-Yates shuffle algorithm
 const shuffleArray = (array: any[]) => {
@@ -14,18 +16,22 @@ const shuffleArray = (array: any[]) => {
   return array;
 };
 
-// Combine and map all content into a unified structure
-const allContent = [
-  ...feedPosts.map(item => ({ ...item, contentType: 'post' })),
-  ...articles.map(item => ({ ...item, contentType: 'article' })),
-  ...activityItems.map(item => ({ ...item, contentType: 'activity' })),
-  ...groupClasses.map(item => ({ ...item, contentType: 'class' })),
-];
-
-
 const SearchView: React.FC = () => {
+    const { feedPosts } = useUser();
+    
+    const allContent = React.useMemo(() => [
+        ...feedPosts.map(item => ({ ...item, contentType: 'post' })),
+        ...articles.map(item => ({ ...item, contentType: 'article' })),
+        ...activityItems.map(item => ({ ...item, contentType: 'activity' })),
+        ...groupClasses.map(item => ({ ...item, contentType: 'class' })),
+    ], [feedPosts]);
+    
     const [items, setItems] = React.useState(() => shuffleArray([...allContent]));
     const [searchQuery, setSearchQuery] = React.useState('');
+
+    React.useEffect(() => {
+        setItems(shuffleArray([...allContent]));
+    }, [allContent]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useRef } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -105,13 +104,18 @@ const ProfilePicturePage: React.FC = () => {
                     </header>
                     <div className="space-y-6">
                          <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
-                         <div className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-white/20 border-2 border-dashed border-white/50 flex items-center justify-center">
+                         <button 
+                            type="button" 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-40 h-40 mx-auto rounded-full overflow-hidden bg-white/20 border-2 border-dashed border-white/50 flex items-center justify-center hover:bg-white/30 transition-colors"
+                            aria-label="Escolher foto de perfil"
+                        >
                             {imagePreview ? (
                                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                             ) : (
                                 <CameraIcon className="w-16 h-16 text-white/50" />
                             )}
-                         </div>
+                        </button>
                         <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-3 px-4 rounded-xl transition-colors">
                             {imagePreview ? 'Trocar Foto' : 'Enviar Foto'}
                         </button>

@@ -1,15 +1,17 @@
 
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { notifications, feedPosts } from '../constants';
-import type { Notification } from '../types';
+import { notifications } from '../constants';
+import type { Notification, FeedPost } from '../types';
+import { useUser } from '../context/UserContext';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const NotificationItem: React.FC<{ notification: Notification }> = ({ notification }) => {
+const NotificationItem: React.FC<{ notification: Notification; feedPosts: FeedPost[] }> = ({ notification, feedPosts }) => {
     const isAvatarUrl = notification.user.avatar.startsWith('http');
     
     const post = feedPosts.find(p => p.imageUrl === notification.postThumbnail);
@@ -49,6 +51,7 @@ const NotificationItem: React.FC<{ notification: Notification }> = ({ notificati
 
 
 const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose }) => {
+  const { feedPosts } = useUser();
   const backdropMotionProps = {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
@@ -82,7 +85,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ isOpen, onClose
                     <h2 className="font-bold text-lg text-slate-800 dark:text-slate-200">Notificações</h2>
                 </div>
                 <div className="py-2 max-h-96 overflow-y-auto no-scrollbar">
-                {notifications.map(n => <NotificationItem key={n.id} notification={n} />)}
+                {notifications.map(n => <NotificationItem key={n.id} notification={n} feedPosts={feedPosts} />)}
                 </div>
             </motion.div>
           </div>

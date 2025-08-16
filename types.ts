@@ -141,11 +141,13 @@ export interface FeedPost {
     handle: string;
     avatar: string; // emoji or image url
   };
-  imageUrl: string;
+  imageUrl?: string;
+  videoUrl?: string;
   caption: string;
   likes: number;
   comments: number;
   type?: 'post' | 'ad';
+  isLikedByCurrentUser?: boolean;
 }
 
 export interface Notification {
