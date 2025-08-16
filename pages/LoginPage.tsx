@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -51,11 +52,16 @@ const LoginPage: React.FC = () => {
                 const userData = userDataArray[0];
                 if (userData && userData.nome && userData.usuario && userData.email) {
                     
+                    let avatarUrl = userData['imagem de perfil'] || initialUser.avatarUrl;
+                    if (typeof avatarUrl === 'string' && avatarUrl.length > 1 && avatarUrl.startsWith('"') && avatarUrl.endsWith('"')) {
+                        avatarUrl = avatarUrl.substring(1, avatarUrl.length - 1);
+                    }
+
                     updateUser({
                         name: userData.nome,
                         handle: `@${userData.usuario}`,
                         email: userData.email,
-                        avatarUrl: userData.imagem || initialUser.avatarUrl,
+                        avatarUrl: avatarUrl,
                         dob: userData['data de nascimento'],
                         bio: userData.bio || 'Explorando o equilíbrio entre mente e corpo.',
                         followers: userData.followers || 0,

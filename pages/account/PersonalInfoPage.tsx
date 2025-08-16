@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -105,6 +102,7 @@ const PersonalInfoPage: React.FC = () => {
       name: trimmedName,
       username: trimmedUsername, // without the '@'
       email: user.email,
+      photo: avatar, // Send the new image data
     };
 
     try {
