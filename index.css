@@ -1,0 +1,45 @@
+/*
+ * Set a nice, consistent base for the entire app.
+ */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+/*
+ * Custom scrollbar styling for a more modern look and feel.
+ * This works in WebKit-based browsers (Chrome, Safari, Edge).
+ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.5); /* slate-400 with 50% opacity */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 115, 139, 0.7); /* slate-500 with more opacity */
+}
+
+/*
+ * Utility to hide scrollbars completely.
+ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
