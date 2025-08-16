@@ -52,7 +52,7 @@ const LoginPage: React.FC = () => {
                 const userData = userDataArray[0];
                 if (userData && userData.nome && userData.usuario && userData.email) {
                     
-                    let avatarUrl = userData['imagem de perfil'] || initialUser.avatarUrl;
+                    let avatarUrl = userData['imagem'] || initialUser.avatarUrl;
                     if (typeof avatarUrl === 'string' && avatarUrl.length > 1 && avatarUrl.startsWith('"') && avatarUrl.endsWith('"')) {
                         avatarUrl = avatarUrl.substring(1, avatarUrl.length - 1);
                     }
