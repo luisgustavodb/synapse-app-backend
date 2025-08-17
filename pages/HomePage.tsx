@@ -1,5 +1,5 @@
 
-import React, { useState, ElementType, useRef } from 'react';
+import React, { useState, ElementType, useRef, useEffect } from 'react';
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -37,18 +37,46 @@ const HomePage: React.FC = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const { feedPosts, feedError, isFeedLoading, refreshFeed, isRefreshing } = useUser();
     
-    const containerRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [isAtTop, setIsAtTop] = useState(true);
     const pullY = useMotionValue(0);
     const [isDragging, setIsDragging] = useState(false);
     const startY = useRef(0);
+
+    useEffect(() => {
+        const contentElement = contentRef.current;
+        if (!contentElement) return;
+
+        let scrollParent = contentElement.parentElement;
+        while (scrollParent) {
+            const style = window.getComputedStyle(scrollParent);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+                break;
+            }
+            scrollParent = scrollParent.parentElement;
+        }
+
+        if (!scrollParent) return;
+
+        const handleScroll = () => {
+            setIsAtTop(scrollParent!.scrollTop === 0);
+        };
+
+        scrollParent.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll(); // Initial check
+
+        return () => {
+            scrollParent!.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+
 
     const iconScale = useTransform(pullY, [0, PULL_THRESHOLD], [0.5, 1.2]);
     const iconRotate = useTransform(pullY, [0, PULL_THRESHOLD], [0, 180]);
     const contentY = useTransform(pullY, [0, PULL_THRESHOLD * 1.5], [0, PULL_THRESHOLD]);
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-        const scrollContainer = containerRef.current;
-        if (scrollContainer && scrollContainer.scrollTop === 0) {
+        if (isAtTop) {
             setIsDragging(true);
             startY.current = e.touches[0].clientY;
         }
@@ -57,13 +85,24 @@ const HomePage: React.FC = () => {
     const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!isDragging) return;
         const deltaY = e.touches[0].clientY - startY.current;
-        // Apply resistance to the pull
-        const dampedDelta = deltaY > 0 ? deltaY * 0.4 : 0;
-        pullY.set(dampedDelta);
+        
+        if (deltaY > 0) { // If pulling down
+            e.preventDefault(); // Prevent native overscroll
+            const dampedDelta = deltaY * 0.4;
+            pullY.set(dampedDelta);
+        } else { // If scrolling up
+            setIsDragging(false); // Cancel the drag
+        }
     };
 
     const handleTouchEnd = () => {
-        if (!isDragging) return;
+        if (!isDragging) {
+            if (pullY.get() !== 0) {
+               animate(pullY, 0, { type: "spring", stiffness: 300, damping: 30 });
+            }
+            return;
+        };
+
         setIsDragging(false);
 
         const currentPullY = pullY.get();
@@ -120,7 +159,7 @@ const HomePage: React.FC = () => {
             <motion.div 
                  className="relative"
                  style={{ y: contentY }}
-                 ref={containerRef}
+                 ref={contentRef}
                  onTouchStart={handleTouchStart}
                  onTouchMove={handleTouchMove}
                  onTouchEnd={handleTouchEnd}

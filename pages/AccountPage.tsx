@@ -60,12 +60,24 @@ const AccountPage: React.FC = () => {
     const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
         if (!isDragging) return;
         const deltaY = e.touches[0].clientY - startY.current;
-        const dampedDelta = deltaY > 0 ? deltaY * 0.4 : 0;
-        pullY.set(dampedDelta);
+
+        if (deltaY > 0) { // If pulling down
+            e.preventDefault(); // Prevent native overscroll
+            const dampedDelta = deltaY * 0.4;
+            pullY.set(dampedDelta);
+        } else { // If scrolling up
+            setIsDragging(false); // Cancel the drag
+        }
     };
 
     const handleTouchEnd = () => {
-        if (!isDragging) return;
+        if (!isDragging) {
+            if (pullY.get() !== 0) {
+               animate(pullY, 0, { type: "spring", stiffness: 300, damping: 30 });
+            }
+            return;
+        };
+
         setIsDragging(false);
 
         const currentPullY = pullY.get();
