@@ -16,7 +16,7 @@ import { PlayIcon } from './icons/PlayIcon';
 import { PauseIcon } from './icons/PauseIcon';
 
 
-const LIKE_WEBHOOK_URL = "http://localhost:5678/webhook-test/e696ff80-9a41-478f-81ee-9bcb4ad83896";
+const LIKE_WEBHOOK_URL = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/e696ff80-9a41-478f-81ee-9bcb4ad83896";
 
 const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
     const { user, togglePostLike } = useUser();
