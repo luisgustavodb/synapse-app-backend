@@ -6,6 +6,7 @@ import { useUser } from '../context/UserContext';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 import { CameraIcon } from '../components/icons/CameraIcon';
 import { useGoBack } from '../hooks/useGoBack';
+import { processAndCompressImage } from '../utils/mediaUtils';
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -13,6 +14,9 @@ const pageVariants = {
   out: { opacity: 0, y: -20 },
 };
 const pageTransition = { type: 'tween', ease: 'anticipate', duration: 0.5 } as const;
+
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const CreatePage: React.FC = () => {
     const navigate = useNavigate();
@@ -25,36 +29,40 @@ const CreatePage: React.FC = () => {
     const [title, setTitle] = useState('');
     const [caption, setCaption] = useState('');
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isProcessingMedia, setIsProcessingMedia] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setError(null); // Limpa erros anteriores
-            const fileType = file.type;
-            const fileName = file.name.toLowerCase();
-            let determinedType: 'image' | 'video' | null = null;
+            setError(null);
+            const fileType = file.type.split('/')[0];
 
-            if (fileType.startsWith('video/')) {
-                determinedType = 'video';
-            } else if (fileType.startsWith('image/')) {
-                determinedType = 'image';
-            } else {
-                // Fallback para navegadores que podem não fornecer um tipo MIME
-                if (/\.(mp4|mov|webm|ogg)$/i.test(fileName)) {
-                    determinedType = 'video';
-                } else if (/\.(jpg|jpeg|png|gif|webp)$/i.test(fileName)) {
-                    determinedType = 'image';
+            if (fileType === 'video') {
+                if (file.size > MAX_FILE_SIZE_BYTES) {
+                    setError(`O vídeo é muito grande. O limite é de ${MAX_FILE_SIZE_MB}MB.`);
+                    setMediaPreview(null);
+                    setMediaType(null);
+                    return;
                 }
-            }
-
-            if (determinedType) {
-                setMediaType(determinedType);
+                setMediaType('video');
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    setMediaPreview(reader.result as string);
-                };
+                reader.onloadend = () => setMediaPreview(reader.result as string);
                 reader.readAsDataURL(file);
+
+            } else if (fileType === 'image') {
+                setIsProcessingMedia(true);
+                setMediaType('image');
+                try {
+                    const compressedDataUrl = await processAndCompressImage(file, MAX_FILE_SIZE_MB);
+                    setMediaPreview(compressedDataUrl);
+                } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Falha ao processar a imagem.');
+                    setMediaPreview(null);
+                    setMediaType(null);
+                } finally {
+                    setIsProcessingMedia(false);
+                }
             } else {
                 setError("Tipo de arquivo não suportado. Por favor, selecione uma imagem ou um vídeo.");
                 setMediaPreview(null);
@@ -69,7 +77,7 @@ const CreatePage: React.FC = () => {
             setError("Usuário não autenticado. Por favor, faça login novamente.");
             return;
         }
-        if (!mediaPreview || !title.trim() || !caption.trim() || isPublishing) return;
+        if (!mediaPreview || !title.trim() || !caption.trim() || isPublishing || isProcessingMedia) return;
 
         setIsPublishing(true);
         setError(null);
@@ -104,7 +112,9 @@ const CreatePage: React.FC = () => {
             });
 
             if (!response.ok) {
-                throw new Error(`O webhook falhou com o status: ${response.status}`);
+                const errorBody = await response.text();
+                console.error("Webhook error response:", errorBody);
+                throw new Error(`O webhook falhou com o status: ${response.status}.`);
             }
 
             const newPost = {
@@ -129,7 +139,7 @@ const CreatePage: React.FC = () => {
         }
     };
 
-    const canPublish = !!mediaPreview && !!title.trim() && !!caption.trim() && !isPublishing;
+    const canPublish = !!mediaPreview && !!title.trim() && !!caption.trim() && !isPublishing && !isProcessingMedia;
 
     return (
         <motion.div
@@ -150,13 +160,19 @@ const CreatePage: React.FC = () => {
                 <main className="flex-grow overflow-y-auto p-4 md:p-6 space-y-6">
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,video/*" className="hidden" />
                     
-                    <div className={`w-full max-w-sm mx-auto rounded-lg overflow-hidden transition-all duration-300 aspect-square ${mediaPreview ? '' : 'border-2 border-dashed border-slate-300 dark:border-slate-600'}`}>
+                    <div className={`w-full max-w-sm mx-auto rounded-lg overflow-hidden transition-all duration-300 aspect-square ${mediaPreview || isProcessingMedia ? '' : 'border-2 border-dashed border-slate-300 dark:border-slate-600'}`}>
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={isProcessingMedia}
                             className="w-full h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                         >
-                            {mediaPreview ? (
+                            {isProcessingMedia ? (
+                                <div className="flex flex-col items-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500 mb-2"></div>
+                                    <span className="font-semibold text-sm">Processando...</span>
+                                </div>
+                            ) : mediaPreview ? (
                                 mediaType === 'video' ? (
                                     <video src={mediaPreview} controls className="w-full h-full object-cover" />
                                 ) : (
@@ -166,7 +182,7 @@ const CreatePage: React.FC = () => {
                                 <>
                                     <CameraIcon className="w-10 h-10 mb-2" />
                                     <span className="font-semibold">Enviar foto ou vídeo</span>
-                                    <span className="text-xs">Quadrado (1:1) recomendado</span>
+                                    <span className="text-xs mt-1">(Max {MAX_FILE_SIZE_MB}MB)</span>
                                 </>
                             )}
                         </button>

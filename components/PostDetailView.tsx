@@ -21,19 +21,51 @@ interface PostDetailViewProps {
     goBack: () => void;
 }
 
+const LIKE_WEBHOOK_URL = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/e696ff80-9a41-478f-81ee-9bcb4ad83896";
+
 const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, goBack }) => {
     const [currentIndex, setCurrentIndex] = useState(() => allPosts.findIndex(p => p.id === initialPost.id));
     const [direction, setDirection] = useState(0);
-    const [isLiked, setIsLiked] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     
-    const { user, updateFeed } = useUser();
+    const { user, updateFeed, togglePostLike } = useUser();
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
     const currentPost = allPosts[currentIndex];
 
     const isOwner = user && currentPost && user.handle === currentPost.author.handle;
+
+    const sendLikeWebhook = async (likeAction: number) => {
+        if (!user || !currentPost) {
+            console.error("Usuário ou post não disponível, não é possível enviar o like.");
+            return;
+        }
+
+        const payload = {
+            'id do post': currentPost.id,
+            'username': user.handle.startsWith('@') ? user.handle.substring(1) : user.handle,
+            'curtidas': likeAction,
+        };
+
+        try {
+            const response = await fetch(LIKE_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) throw new Error(`O webhook falhou com o status: ${response.status}`);
+        } catch (error) {
+            console.error("Erro ao enviar o like para o webhook:", error);
+        }
+    };
+    
+    const handleLikeClick = () => {
+        if (!currentPost) return;
+        const likeAction = currentPost.isLikedByCurrentUser ? -1 : 1;
+        togglePostLike(currentPost.id);
+        sendLikeWebhook(likeAction);
+    };
     
     const paginate = (newDirection: number) => {
         setDirection(newDirection);
@@ -195,8 +227,8 @@ const PostDetailView: React.FC<PostDetailViewProps> = ({ initialPost, allPosts, 
                 
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-5">
-                         <button onClick={() => setIsLiked(!isLiked)} aria-label="Curtir">
-                            {isLiked ? <FilledHeartIcon className="w-7 h-7 text-pink-500" /> : <HeartIcon className="w-7 h-7 hover:text-pink-500" />}
+                         <button onClick={handleLikeClick} aria-label="Curtir">
+                            {currentPost.isLikedByCurrentUser ? <FilledHeartIcon className="w-7 h-7 text-pink-500" /> : <HeartIcon className="w-7 h-7 hover:text-pink-500" />}
                         </button>
                          <button aria-label="Comentar">
                             <CommentIcon className="w-7 h-7 hover:text-blue-400" />
