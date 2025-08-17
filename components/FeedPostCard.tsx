@@ -16,7 +16,7 @@ import { PlayIcon } from './icons/PlayIcon';
 import { PauseIcon } from './icons/PauseIcon';
 
 
-const LIKE_WEBHOOK_URL = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/e696ff80-9a41-478f-81ee-9bcb4ad83896";
+const LIKE_WEBHOOK_URL = "http://localhost:5678/webhook-test/e696ff80-9a41-478f-81ee-9bcb4ad83896";
 
 const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
     const { user, togglePostLike } = useUser();
@@ -261,29 +261,34 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
 
             <div className="px-4 pb-4">
                 <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{post.likes.toLocaleString('pt-BR')} curtidas</p>
-                 <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 break-words whitespace-pre-line">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 mr-1">{post.author.handle}</span>
-                    {isLongCaption && !isExpanded ? (
-                        <>
-                            {`${post.caption.substring(0, captionLimit)}... `}
-                            <button onClick={() => setIsExpanded(true)} className="text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-300">
-                                ver mais
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            {post.caption}
-                            {isLongCaption && isExpanded && (
-                                <>
-                                    {' '}
-                                    <button onClick={() => setIsExpanded(false)} className="text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-300">
-                                        ver menos
-                                    </button>
-                                </>
-                            )}
-                        </>
-                    )}
-                </p>
+                <motion.div
+                    layout
+                    transition={{ layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] } }}
+                >
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 break-words whitespace-pre-line">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 mr-1">{post.author.handle}</span>
+                        {isLongCaption && !isExpanded ? (
+                            <>
+                                {`${post.caption.substring(0, captionLimit)}... `}
+                                <button onClick={() => setIsExpanded(true)} className="text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-300">
+                                    ver mais
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                {post.caption}
+                                {isLongCaption && isExpanded && (
+                                    <>
+                                        {' '}
+                                        <button onClick={() => setIsExpanded(false)} className="text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-300">
+                                            ver menos
+                                        </button>
+                                    </>
+                                )}
+                            </>
+                        )}
+                    </p>
+                </motion.div>
                  <p className="text-xs text-slate-400 mt-2 hover:underline cursor-pointer">
                     Ver todos os {post.comments.toLocaleString('pt-BR')} comentários
                  </p>
