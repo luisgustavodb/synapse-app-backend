@@ -271,7 +271,17 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
                             </button>
                         </>
                     ) : (
-                        post.caption
+                        <>
+                            {post.caption}
+                            {isLongCaption && isExpanded && (
+                                <>
+                                    {' '}
+                                    <button onClick={() => setIsExpanded(false)} className="text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-700 dark:hover:text-slate-300">
+                                        ver menos
+                                    </button>
+                                </>
+                            )}
+                        </>
                     )}
                 </p>
                  <p className="text-xs text-slate-400 mt-2 hover:underline cursor-pointer">
