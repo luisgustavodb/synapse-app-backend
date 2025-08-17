@@ -31,11 +31,31 @@ const pageTransition = {
 const MotionDiv = motion.div as ElementType;
 
 const AccountPage: React.FC = () => {
-    const { user, feedPosts } = useUser();
+    const { user, feedPosts, refreshFeed, isRefreshing } = useUser();
     const [activeTab, setActiveTab] = useState<'posts' | 'progress'>('posts');
     const [viewingHighlight, setViewingHighlight] = useState<StoryHighlight | null>(null);
     const [isFollowListOpen, setIsFollowListOpen] = useState(false);
     const [initialFollowTab, setInitialFollowTab] = useState<'followers' | 'following'>('followers');
+
+    const [touchStartY, setTouchStartY] = useState(0);
+
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        const scrollContainer = (e.currentTarget as HTMLElement).closest('.no-scrollbar');
+        if (scrollContainer && scrollContainer.scrollTop === 0) {
+            setTouchStartY(e.targetTouches[0].clientY);
+        } else {
+            setTouchStartY(0);
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (touchStartY === 0) return;
+        const finalY = e.changedTouches[0].clientY;
+        if (finalY - touchStartY > 100) { // Pull threshold
+            refreshFeed();
+        }
+        setTouchStartY(0);
+    };
 
     const userPosts = useMemo(() => {
         if (!user) return [];
@@ -82,6 +102,8 @@ const AccountPage: React.FC = () => {
         <MotionDiv
             {...motionProps}
             className="flex flex-col h-full bg-slate-100 dark:bg-slate-950"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
         >
             <header className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex-1 flex justify-start">
@@ -97,6 +119,11 @@ const AccountPage: React.FC = () => {
                 </div>
             </header>
             <main className="flex-grow overflow-y-auto">
+                {isRefreshing && (
+                    <div className="flex justify-center items-center pt-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                    </div>
+                )}
                 <div className="p-4 space-y-4">
                     <UserInfoCard 
                         user={user} 

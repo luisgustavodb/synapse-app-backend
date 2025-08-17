@@ -32,7 +32,28 @@ const MotionHeader = motion.header as ElementType;
 const HomePage: React.FC = () => {
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
-    const { feedPosts, feedError, isFeedLoading } = useUser();
+    const { feedPosts, feedError, isFeedLoading, refreshFeed, isRefreshing } = useUser();
+    
+    const [touchStartY, setTouchStartY] = useState(0);
+
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        const scrollContainer = (e.currentTarget as HTMLElement).closest('.no-scrollbar');
+        if (scrollContainer && scrollContainer.scrollTop === 0) {
+            setTouchStartY(e.targetTouches[0].clientY);
+        } else {
+            setTouchStartY(0);
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (touchStartY === 0) return;
+        const finalY = e.changedTouches[0].clientY;
+        if (finalY - touchStartY > 100) { // Pull threshold
+            refreshFeed();
+        }
+        setTouchStartY(0);
+    };
+
 
     const motionProps = {
         initial: "initial",
@@ -45,6 +66,8 @@ const HomePage: React.FC = () => {
     return (
         <MotionDiv
             {...motionProps}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
         >
             <div className="sticky top-0 w-full z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 h-[68px]">
                 <MotionHeader
@@ -80,6 +103,11 @@ const HomePage: React.FC = () => {
             <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
             <div className="pb-24">
+                 {isRefreshing && (
+                    <div className="flex justify-center items-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                    </div>
+                )}
                 {feedError && (
                     <div className="p-4 m-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600/50 text-red-800 dark:text-red-200 rounded-lg text-left flex items-start space-x-3">
                         <ExclamationTriangleIcon className="h-6 w-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" />
