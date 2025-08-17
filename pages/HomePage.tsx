@@ -1,7 +1,6 @@
 
-
-import React, { useState, ElementType } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, ElementType, useRef } from 'react';
+import { motion, useMotionValue, useTransform, animate, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import FeedPostCard from '../components/FeedPostCard';
@@ -13,6 +12,10 @@ import NotificationsPanel from '../components/NotificationsPanel';
 import ChatPanel from '../components/ChatPanel';
 import type { FeedPost } from '../types';
 import { ExclamationTriangleIcon } from '../components/icons/ExclamationTriangleIcon';
+import { ArrowDownIcon } from '../components/icons/ArrowDownIcon';
+
+
+const PULL_THRESHOLD = 80;
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -34,26 +37,42 @@ const HomePage: React.FC = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const { feedPosts, feedError, isFeedLoading, refreshFeed, isRefreshing } = useUser();
     
-    const [touchStartY, setTouchStartY] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const pullY = useMotionValue(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const startY = useRef(0);
+
+    const iconScale = useTransform(pullY, [0, PULL_THRESHOLD], [0.5, 1.2]);
+    const iconRotate = useTransform(pullY, [0, PULL_THRESHOLD], [0, 180]);
+    const contentY = useTransform(pullY, [0, PULL_THRESHOLD * 1.5], [0, PULL_THRESHOLD]);
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-        const scrollContainer = (e.currentTarget as HTMLElement).closest('.no-scrollbar');
+        const scrollContainer = containerRef.current;
         if (scrollContainer && scrollContainer.scrollTop === 0) {
-            setTouchStartY(e.targetTouches[0].clientY);
-        } else {
-            setTouchStartY(0);
+            setIsDragging(true);
+            startY.current = e.touches[0].clientY;
         }
     };
+    
+    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - startY.current;
+        // Apply resistance to the pull
+        const dampedDelta = deltaY > 0 ? deltaY * 0.4 : 0;
+        pullY.set(dampedDelta);
+    };
 
-    const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-        if (touchStartY === 0) return;
-        const finalY = e.changedTouches[0].clientY;
-        if (finalY - touchStartY > 100) { // Pull threshold
+    const handleTouchEnd = () => {
+        if (!isDragging) return;
+        setIsDragging(false);
+
+        const currentPullY = pullY.get();
+        if (currentPullY >= PULL_THRESHOLD) {
             refreshFeed();
         }
-        setTouchStartY(0);
+        
+        animate(pullY, 0, { type: "spring", stiffness: 300, damping: 30 });
     };
-
 
     const motionProps = {
         initial: "initial",
@@ -64,11 +83,7 @@ const HomePage: React.FC = () => {
     };
 
     return (
-        <MotionDiv
-            {...motionProps}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-        >
+        <MotionDiv {...motionProps}>
             <div className="sticky top-0 w-full z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 h-[68px]">
                 <MotionHeader
                     initial={{ opacity: 0, y: -20 }}
@@ -101,53 +116,86 @@ const HomePage: React.FC = () => {
 
             <NotificationsPanel isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
             <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            
+            <motion.div 
+                 className="relative"
+                 style={{ y: contentY }}
+                 ref={containerRef}
+                 onTouchStart={handleTouchStart}
+                 onTouchMove={handleTouchMove}
+                 onTouchEnd={handleTouchEnd}
+            >
+                 <motion.div
+                    className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none"
+                    style={{ y: pullY, translateY: '-100%' }}
+                >
+                    <AnimatePresence>
+                        {isRefreshing ? (
+                            <motion.div
+                                key="spinner"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                exit={{ scale: 0 }}
+                                className="my-4 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg"
+                            >
+                                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="arrow"
+                                className="my-4 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg"
+                                style={{ scale: iconScale }}
+                            >
+                                <motion.div style={{ rotate: iconRotate }}>
+                                    <ArrowDownIcon className="h-6 w-6 text-slate-500 dark:text-slate-400" />
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
 
-            <div className="pb-24">
-                 {isRefreshing && (
-                    <div className="flex justify-center items-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
-                    </div>
-                )}
-                {feedError && (
-                    <div className="p-4 m-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600/50 text-red-800 dark:text-red-200 rounded-lg text-left flex items-start space-x-3">
-                        <ExclamationTriangleIcon className="h-6 w-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" />
-                        <div>
-                            <p className="font-bold">Erro ao Carregar o Feed</p>
-                            <p className="text-sm mt-1 whitespace-pre-line">{feedError}</p>
+                <div className="pb-24">
+                    {feedError && (
+                        <div className="p-4 m-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600/50 text-red-800 dark:text-red-200 rounded-lg text-left flex items-start space-x-3">
+                            <ExclamationTriangleIcon className="h-6 w-6 text-red-500 dark:text-red-400 flex-shrink-0 mt-1" />
+                            <div>
+                                <p className="font-bold">Erro ao Carregar o Feed</p>
+                                <p className="text-sm mt-1 whitespace-pre-line">{feedError}</p>
+                            </div>
                         </div>
-                    </div>
-                )}
-                
-                {isFeedLoading && feedPosts.length === 0 && !feedError && (
-                     <div className="flex justify-center items-center py-20">
-                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
-                    </div>
-                )}
+                    )}
+                    
+                    {isFeedLoading && feedPosts.length === 0 && !feedError && (
+                         <div className="flex justify-center items-center py-20">
+                            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
+                        </div>
+                    )}
 
-                {feedPosts.length > 0 ? (
-                    <div className="space-y-4">
-                        {feedPosts.map(post => (
-                            post.type === 'ad'
-                                ? <AdFeedCard key={post.id} post={post} />
-                                : <FeedPostCard key={post.id} post={post} />
-                        ))}
-                        <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm font-medium">
-                            <p>Você chegou ao final do feed.</p>
+                    {feedPosts.length > 0 ? (
+                        <div className="space-y-4">
+                            {feedPosts.map(post => (
+                                post.type === 'ad'
+                                    ? <AdFeedCard key={post.id} post={post} />
+                                    : <FeedPostCard key={post.id} post={post} />
+                            ))}
+                            <div className="text-center py-8 text-slate-500 dark:text-slate-400 text-sm font-medium">
+                                <p>Você chegou ao final do feed.</p>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    !feedError && !isFeedLoading && (
-                         <div className="text-center py-20 px-6 text-slate-500 dark:text-slate-400">
-                            <p className="font-semibold text-lg text-slate-600 dark:text-slate-300">Seu feed está vazio</p>
-                            <p className="text-sm mt-2">Comece a seguir pessoas ou explore para ver novas publicações aqui.</p>
-                            <Link to="/create" className="mt-6 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-full transition-colors">
-                                <PlusIcon className="w-5 h-5" />
-                                <span>Criar Publicação</span>
-                            </Link>
-                        </div>
-                    )
-                )}
-            </div>
+                    ) : (
+                        !feedError && !isFeedLoading && (
+                             <div className="text-center py-20 px-6 text-slate-500 dark:text-slate-400">
+                                <p className="font-semibold text-lg text-slate-600 dark:text-slate-300">Seu feed está vazio</p>
+                                <p className="text-sm mt-2">Comece a seguir pessoas ou explore para ver novas publicações aqui.</p>
+                                <Link to="/create" className="mt-6 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-full transition-colors">
+                                    <PlusIcon className="w-5 h-5" />
+                                    <span>Criar Publicação</span>
+                                </Link>
+                            </div>
+                        )
+                    )}
+                </div>
+            </motion.div>
         </MotionDiv>
     );
 };
