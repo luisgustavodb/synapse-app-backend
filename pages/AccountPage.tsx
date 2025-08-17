@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, ElementType } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ import HighlightCard from '../components/HighlightCard';
 import MyProgressPage from './account/MyProgressPage';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { SettingsIcon } from '../components/icons/SettingsIcon';
+import VideoThumbnail from '../components/VideoThumbnail';
 
 
 const pageVariants = {
@@ -37,7 +39,7 @@ const AccountPage: React.FC = () => {
 
     const userPosts = useMemo(() => {
         if (!user) return [];
-        return feedPosts.filter(post => post.author.handle === user.handle);
+        return feedPosts.filter(post => post.author.handle === user.handle && post.type === 'post');
     }, [user, feedPosts]);
 
     if (!user) {
@@ -134,7 +136,15 @@ const AccountPage: React.FC = () => {
                         <div className="grid grid-cols-3 gap-1 md:gap-3">
                             {userPosts.map(post => (
                                 <Link to={`/detail/post/${post.id}`} key={post.id} className="aspect-square bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden transition-transform duration-200 active:scale-95">
-                                    <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
+                                    {post.videoUrl ? (
+                                        <VideoThumbnail videoUrl={post.videoUrl} alt={post.caption} className="w-full h-full object-cover" />
+                                    ) : post.imageUrl ? (
+                                        <img src={post.imageUrl} alt={post.caption} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-100 dark:bg-slate-700">
+                                            <span className="text-slate-400 text-xs">Sem mídia</span>
+                                        </div>
+                                    )}
                                 </Link>
                             ))}
                         </div>

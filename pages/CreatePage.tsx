@@ -74,7 +74,7 @@ const CreatePage: React.FC = () => {
         setIsPublishing(true);
         setError(null);
         
-        const webhookUrl = "http://localhost:5678/webhook-test/cb960ada-ca9d-4358-811b-084743f9c46e";
+        const webhookUrl = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/cb960ada-ca9d-4358-811b-084743f9c46e";
         const payload: {
             username: string;
             title: string;
