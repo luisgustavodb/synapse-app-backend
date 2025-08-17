@@ -1,47 +1,37 @@
-
 import React from 'react';
-import { articles, activityItems, groupClasses } from '../../constants';
 import GridItemCard from '../../components/GridItemCard';
 import { LeafIcon } from '../../components/icons/LeafIcon';
 import { useUser } from '../../context/UserContext';
-
-// Fisher-Yates shuffle algorithm
-const shuffleArray = (array: any[]) => {
-  let currentIndex = array.length, randomIndex;
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-  }
-  return array;
-};
+import type { FeedPost } from '../../types';
 
 const SearchView: React.FC = () => {
     const { feedPosts } = useUser();
-    
-    const allContent = React.useMemo(() => [
-        ...feedPosts.map(item => ({ ...item, contentType: 'post' })),
-        ...articles.map(item => ({ ...item, contentType: 'article' })),
-        ...activityItems.map(item => ({ ...item, contentType: 'activity' })),
-        ...groupClasses.map(item => ({ ...item, contentType: 'class' })),
-    ], [feedPosts]);
-    
-    const [items, setItems] = React.useState(() => shuffleArray([...allContent]));
     const [searchQuery, setSearchQuery] = React.useState('');
 
-    React.useEffect(() => {
-        setItems(shuffleArray([...allContent]));
-    }, [allContent]);
+    const filteredItems = React.useMemo(() => {
+        const allPosts = feedPosts.map(item => ({ ...item, contentType: 'post' as const }));
 
-    const handleSearch = (e: React.FormEvent) => {
+        if (!searchQuery.trim()) {
+            return allPosts;
+        }
+
+        const lowercasedQuery = searchQuery.toLowerCase();
+        
+        return allPosts.filter(item => {
+            const post = item as FeedPost;
+            // A legenda contém o título e a descrição do webhook.
+            return post.caption.toLowerCase().includes(lowercasedQuery);
+        });
+    }, [feedPosts, searchQuery]);
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // As requested, shuffles the content randomly on search.
-        setItems(shuffleArray([...items]));
+        // A busca é em tempo real, então o envio não precisa fazer nada extra.
     };
 
     return (
         <div className="p-4 bg-slate-50 dark:bg-slate-950 min-h-full pb-24">
-            <form onSubmit={handleSearch} className="relative mb-4">
+            <form onSubmit={handleSearchSubmit} className="relative mb-4">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <LeafIcon className="h-5 w-5 text-slate-400 dark:text-slate-500" />
                 </div>
@@ -55,16 +45,26 @@ const SearchView: React.FC = () => {
                 />
             </form>
 
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
-                {items.map((item) => {
-                    const itemQuery = item.title || item.caption || item.description || 'lifestyle';
-                    return (
-                        <div key={`${item.contentType}-${item.id}`} className="mb-4 break-inside-avoid">
-                            <GridItemCard item={item} searchQuery={itemQuery} />
-                        </div>
-                    );
-                })}
-            </div>
+            {filteredItems.length > 0 ? (
+                <div className="columns-2 md:columns-3 lg:columns-4 gap-4">
+                    {filteredItems.map((item) => {
+                        const itemQuery = item.caption || 'lifestyle';
+                        return (
+                            <div key={`${item.contentType}-${item.id}`} className="mb-4 break-inside-avoid">
+                                <GridItemCard item={item} searchQuery={itemQuery} />
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="text-center pt-16 px-6">
+                    <div className="inline-block p-4 bg-slate-200 dark:bg-slate-800 rounded-full">
+                        <LeafIcon className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-bold text-slate-700 dark:text-slate-300">Nenhum resultado encontrado</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Tente pesquisar por outros termos.</p>
+                </div>
+            )}
         </div>
     );
 };
