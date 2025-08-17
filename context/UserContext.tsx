@@ -10,6 +10,7 @@ interface UserContextType {
     isFeedLoading: boolean;
     feedPosts: FeedPost[];
     updateFeed: (action: { type: 'add' | 'remove'; post?: FeedPost; postId?: string }) => void;
+    togglePostLike: (postId: string) => void;
     feedError: string | null;
 }
 
@@ -300,8 +301,24 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const togglePostLike = (postId: string) => {
+        setFeedPosts(prevPosts =>
+            prevPosts.map(p => {
+                if (p.id === postId) {
+                    const wasLiked = p.isLikedByCurrentUser ?? false;
+                    return {
+                        ...p,
+                        isLikedByCurrentUser: !wasLiked,
+                        likes: wasLiked ? p.likes - 1 : p.likes + 1,
+                    };
+                }
+                return p;
+            })
+        );
+    };
+
     return (
-        <UserContext.Provider value={{ user, updateUser, isLoading, isFeedLoading, feedPosts, updateFeed, feedError }}>
+        <UserContext.Provider value={{ user, updateUser, isLoading, isFeedLoading, feedPosts, updateFeed, togglePostLike, feedError }}>
             {children}
         </UserContext.Provider>
     );

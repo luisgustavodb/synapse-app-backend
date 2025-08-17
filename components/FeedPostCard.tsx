@@ -19,12 +19,10 @@ import { PauseIcon } from './icons/PauseIcon';
 const LIKE_WEBHOOK_URL = "https://pleased-sharply-cheetah.ngrok-free.app/webhook/e696ff80-9a41-478f-81ee-9bcb4ad83896";
 
 const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
-    const { user } = useUser();
+    const { user, togglePostLike } = useUser();
     const videoRef = useRef<HTMLVideoElement>(null);
     const controlsTimeout = useRef<number | null>(null);
 
-    const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser ?? false);
-    const [likeCount, setLikeCount] = useState(post.likes);
     const [isSaved, setIsSaved] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -35,11 +33,6 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
     const [progress, setProgress] = useState(0);
     const [showControls, setShowControls] = useState(false);
     const [centerIcon, setCenterIcon] = useState<{ key: number; type: 'play' | 'pause' } | null>(null);
-
-    useEffect(() => {
-        setIsLiked(post.isLikedByCurrentUser ?? false);
-        setLikeCount(post.likes);
-    }, [post.isLikedByCurrentUser, post.likes, post.id]);
 
     useEffect(() => {
         const videoElement = videoRef.current;
@@ -93,14 +86,21 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
     };
 
     const handleLikeClick = () => {
-        const newIsLiked = !isLiked;
-        setIsLiked(newIsLiked);
-        setLikeCount(prev => prev + (newIsLiked ? 1 : -1));
-        sendLikeWebhook(newIsLiked ? 1 : -1);
+        // If it's currently liked, the action is to unlike (-1).
+        // If it's not liked, the action is to like (1).
+        const likeAction = post.isLikedByCurrentUser ? -1 : 1; 
+
+        // Update global state first for immediate UI feedback.
+        togglePostLike(post.id);
+
+        // Then send the update to the backend.
+        sendLikeWebhook(likeAction);
     };
 
     const handleDoubleClickLike = () => {
-        if (!isLiked) handleLikeClick();
+        if (!post.isLikedByCurrentUser) {
+            handleLikeClick();
+        }
         setShowHeartAnimation(true);
         setTimeout(() => setShowHeartAnimation(false), 800);
     };
@@ -245,7 +245,7 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
             <div className="flex items-center justify-between p-3">
                 <div className="flex items-center space-x-4">
                     <button onClick={handleLikeClick} className="transition-transform duration-200 ease-in-out transform active:scale-90" aria-label="Curtir">
-                        {isLiked ? <FilledHeartIcon className="w-7 h-7 text-pink-500" /> : <HeartIcon className="w-7 h-7 text-slate-500 dark:text-slate-400 hover:text-pink-500" />}
+                        {post.isLikedByCurrentUser ? <FilledHeartIcon className="w-7 h-7 text-pink-500" /> : <HeartIcon className="w-7 h-7 text-slate-500 dark:text-slate-400 hover:text-pink-500" />}
                     </button>
                     <button className="text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors" aria-label="Comentar">
                         <CommentIcon className="w-7 h-7" />
@@ -260,7 +260,7 @@ const FeedPostCard: React.FC<{ post: FeedPost }> = ({ post }) => {
             </div>
 
             <div className="px-4 pb-4">
-                <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{likeCount.toLocaleString('pt-BR')} curtidas</p>
+                <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{post.likes.toLocaleString('pt-BR')} curtidas</p>
                  <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 break-words whitespace-pre-line">
                     <span className="font-bold text-slate-800 dark:text-slate-200 mr-1">{post.author.handle}</span>
                     {isLongCaption && !isExpanded ? (
